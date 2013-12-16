@@ -1,0 +1,22 @@
+<package>
+  <description brief="Iterative Closest Points (ICP)">
+  Point Cloud Library based Iterative Closest Points (ICP)
+  </description>
+  <author>Javier Hidalgo Carrio/javier.hidalgo_carrio@dfki.de</author>
+  <license></license>
+  <url>http://</url>
+  <logo>http://</logo>
+  <depend package="base/cmake" />
+  <!--
+   To add any dependencies use the depend tag
+  <depend package="dummy-dependency-0" />
+	...
+  <depend package="dummy-dependency-n-1" />
+  <depend package="dummy-dependency-n" />
+  -->
+  <depend package="base/types" />
+  <depend package="base/orogen/types" />
+  <depend package="drivers/orogen/aggregator" />
+  <depend package="drivers/orogen/transformer" />
+  <depend package="slam/pcl" />
+</package>
