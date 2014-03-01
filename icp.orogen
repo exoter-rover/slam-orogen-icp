@@ -4,7 +4,8 @@ name "icp"
 
 # If new data types need to be defined, they have to be put in a separate C++
 # header, and this header will be loaded here
-using_library "slam/pcl"
+using_library "pcl_registration-1.7"
+using_library "flann"
 
 # Finally, it is pretty common that headers are directly loaded from an external
 # library. In this case, the library must be first used (the name is the
@@ -38,6 +39,10 @@ task_context "Gicp" do
 
     input_port('point_cloud_samples', 'base/samples/Pointcloud').
 	doc 'Point cloud samples.'
+
+    input_port('initial_alignment', '/base/samples/RigidBodyState').
+       doc " External initial pose alignment provided for the ICP."+
+       "In case of no initial alignment provided a Sample Consensus Initial Alignment is computed"
 
     #******************************
     #******* Transformer  *********
