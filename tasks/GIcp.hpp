@@ -3,11 +3,17 @@
 #ifndef ICP_GICP_TASK_HPP
 #define ICP_GICP_TASK_HPP
 
-#include "icp/GicpBase.hpp"
+#include "icp/GIcpBase.hpp"
+
+/** PCL library **/
+#include <pcl/registration/gicp.h>
 
 namespace icp {
 
-    /*! \class Gicp 
+    typedef pcl::PointCloud<pcl::PointXYZ> PCLPointCloud;
+    typedef typename PCLPointCloud::Ptr PCLPointCloudPtr;
+
+    /*! \class GIcp 
      * \brief The task context provides and requires services. It uses an ExecutionEngine to perform its functions.
      * Essential interfaces are operations, data flow ports and properties. These interfaces have been defined using the oroGen specification.
      * In order to modify the interfaces you should (re)use oroGen and rely on the associated workflow.
@@ -22,37 +28,45 @@ namespace icp {
      * The name of a TaskContext is primarily defined via:
      \verbatim
      deployment 'deployment_name'
-         task('custom_task_name','icp::Gicp')
+         task('custom_task_name','icp::GIcp')
      end
      \endverbatim
      *  It can be dynamically adapted when the deployment is called with a prefix argument. 
      */
-    class Gicp : public GicpBase
+    class GIcp : public GIcpBase
     {
-	friend class GicpBase;
+	friend class GIcpBase;
+
+    protected:
+        pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp; /** Generalized Iterative Closest Point **/
+        icp::GICPConfiguration gicp_config; /** Configuration **/
+        PCLPointCloudPtr source_cloud; /** Input **/
+        PCLPointCloudPtr target_cloud; /** Target **/
+
+        ::base::samples::RigidBodyState pose; /** Cumulative pose **/
+
     protected:
 
         virtual void point_cloud_modelTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_model_sample);
-
         virtual void point_cloud_samplesTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_samples_sample);
 
     public:
-        /** TaskContext constructor for Gicp
+        /** TaskContext constructor for GIcp
          * \param name Name of the task. This name needs to be unique to make it identifiable via nameservices.
          * \param initial_state The initial TaskState of the TaskContext. Default is Stopped state.
          */
-        Gicp(std::string const& name = "icp::Gicp");
+        GIcp(std::string const& name = "icp::GIcp");
 
-        /** TaskContext constructor for Gicp 
+        /** TaskContext constructor for GIcp 
          * \param name Name of the task. This name needs to be unique to make it identifiable for nameservices. 
          * \param engine The RTT Execution engine to be used for this task, which serialises the execution of all commands, programs, state machines and incoming events for a task. 
          * 
          */
-        Gicp(std::string const& name, RTT::ExecutionEngine* engine);
+        GIcp(std::string const& name, RTT::ExecutionEngine* engine);
 
-        /** Default deconstructor of Gicp
+        /** Default deconstructor of GIcp
          */
-	~Gicp();
+	~GIcp();
 
         /** This hook is called by Orocos when the state machine transitions
          * from PreOperational to Stopped. If it returns false, then the

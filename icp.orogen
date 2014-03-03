@@ -11,7 +11,7 @@ using_library "flann"
 # library. In this case, the library must be first used (the name is the
 # library's pkg-config name) and then the header can be used. Following Rock
 # conventions, a common use-case would be:
-import_types_from "base" 
+import_types_from "base"
 import_types_from "icpTypes.hpp"
 
 # If this project uses data types that are defined in other oroGen projects,
@@ -22,7 +22,7 @@ import_types_from "icpTypes.hpp"
 #
 # The corresponding C++ class can be edited in tasks/Task.hpp and
 # tasks/Task.cpp, and will be put in the icp namespace.
-task_context "Gicp" do
+task_context "GIcp" do
     # This is the default from now on, and should not be removed. Rock will
     # transition to a setup where all components use a configuration step.
     needs_configuration
@@ -30,15 +30,17 @@ task_context "Gicp" do
     #*************************
     #**** Task Properties ****
     #*************************
+    property('config_parameters', 'icp/GICPConfiguration').
+	doc 'Configuration parameters for the ICP.'
 
     #******************************
     #******* Input ports  *********
     #******************************
     input_port('point_cloud_model', 'base/samples/Pointcloud').
-	doc 'Point cloud model.'
+	doc 'Point cloud model (target).'
 
     input_port('point_cloud_samples', 'base/samples/Pointcloud').
-	doc 'Point cloud samples.'
+	doc 'Point cloud samples (input).'
 
     input_port('initial_alignment', '/base/samples/RigidBodyState').
        doc " External initial pose alignment provided for the ICP."+
@@ -58,10 +60,20 @@ task_context "Gicp" do
     #******* Output Ports *********
     #******************************
     output_port('pose_samples_out', '/base/samples/RigidBodyState').
-	doc 'Estimated accumulative pose.'
+	doc 'Estimated accumulative pose. Accumulative sum of T_input_target over time.'
 
     output_port('delta_pose_samples_out', '/base/samples/RigidBodyState').
-	doc 'Delta estimated pose.'
+	doc 'Delta estimated pose. Translation from input point cloud to target point cloud. T_input_target'
+
+    #************************************
+    #******* Output Debug Ports *********
+    #************************************
+    property('output_debug', 'bool', false).
+	doc 'Set to true if output debug information is desirable.'
+
+    output_port('icp_debug', 'icp/ICPDebug').
+	doc 'icp extra debug information port.'
+
 
 
 end
