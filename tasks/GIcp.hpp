@@ -5,8 +5,16 @@
 
 #include "icp/GIcpBase.hpp"
 
+/** Standard libraries **/
+#include <cstdlib>
+
 /** PCL library **/
+#include <pcl/filters/fast_bilateral_omp.h>
 #include <pcl/registration/gicp.h>
+
+/** Rock libraries **/
+#include <base/samples/RigidBodyState.hpp>
+#include <base/Point.hpp>
 
 namespace icp {
 
@@ -38,17 +46,31 @@ namespace icp {
 	friend class GIcpBase;
 
     protected:
-        pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp; /** Generalized Iterative Closest Point **/
+        /**************************/
+        /*** Property Variables ***/
+        /**************************/
         icp::GICPConfiguration gicp_config; /** Configuration **/
-        PCLPointCloudPtr source_cloud; /** Input **/
-        PCLPointCloudPtr target_cloud; /** Target **/
 
+        /***************************/
+        /** Input port variables **/
+        /***************************/
+        ::base::samples::Pointcloud pc_model, pc_source;
+
+        /*******************************/
+        /** General Purpose variables **/
+        /*******************************/
+        pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp; /** Generalized Iterative Closest Point **/
+        pcl::FastBilateralFilter<pcl::PointXYZ> bilateral_filter;
+
+        /***************************/
+        /** Output port variables **/
+        /***************************/
         ::base::samples::RigidBodyState pose; /** Cumulative pose **/
 
     protected:
 
         virtual void point_cloud_modelTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_model_sample);
-        virtual void point_cloud_samplesTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_samples_sample);
+        virtual void point_cloud_sourceTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_source_sample);
 
     public:
         /** TaskContext constructor for GIcp
@@ -125,6 +147,19 @@ namespace icp {
          * before calling start() again.
          */
         void cleanupHook();
+
+        ::base::samples::RigidBodyState performAlign (const ::base::samples::Pointcloud & target,
+                                                    const ::base::samples::Pointcloud & model,
+                                                    ::base::samples::RigidBodyState &initial_delta,
+                                                    icp::GICPConfiguration &gicp_config);
+
+        void toPCLPointCloud(const std::vector< Eigen::Vector3d >& points, pcl::PointCloud< pcl::PointXYZ >& pcl_pc, double density);
+
+        void fromPCLPointCloud(std::vector< Eigen::Vector3d >& points, const pcl::PointCloud< pcl::PointXYZ >& pcl_pc, double density);
+
+        void transformPointCloud(const std::vector< Eigen::Vector3d >& points, std::vector< Eigen::Vector3d >& transformed_pc, const Eigen::Affine3d& transformation);
+
+        void transformPointCloud(std::vector< Eigen::Vector3d >& points, const Eigen::Affine3d& transformation);
     };
 }
 

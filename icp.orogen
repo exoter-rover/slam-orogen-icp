@@ -39,7 +39,7 @@ task_context "GIcp" do
     input_port('point_cloud_model', 'base/samples/Pointcloud').
 	doc 'Point cloud model (target).'
 
-    input_port('point_cloud_samples', 'base/samples/Pointcloud').
+    input_port('point_cloud_source', 'base/samples/Pointcloud').
 	doc 'Point cloud samples (input).'
 
     input_port('initial_alignment', '/base/samples/RigidBodyState').
@@ -51,7 +51,7 @@ task_context "GIcp" do
     #******************************
     transformer do
         align_port("point_cloud_model", 0.01)
-	align_port("point_cloud_samples", 0.01)
+	align_port("point_cloud_source", 0.01)
         max_latency(0.02)
     end
 
@@ -63,7 +63,7 @@ task_context "GIcp" do
 	doc 'Estimated accumulative pose. Accumulative sum of T_input_target over time.'
 
     output_port('delta_pose_samples_out', '/base/samples/RigidBodyState').
-	doc 'Delta estimated pose. Translation from input point cloud to target point cloud. T_input_target'
+	doc 'Delta estimated pose. Translation from input point cloud (point_cloud_source) to target point cloud (point_cloud_model). T_input_target'
 
     #************************************
     #******* Output Debug Ports *********
@@ -74,6 +74,8 @@ task_context "GIcp" do
     output_port('icp_debug', 'icp/ICPDebug').
 	doc 'icp extra debug information port.'
 
+    output_port('point_cloud_samples_out', 'base/samples/Pointcloud').
+	doc 'Filtered point cloud samples.'
 
 
 end
