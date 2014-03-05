@@ -36,7 +36,7 @@ task_context "GIcp" do
     #******************************
     #******* Input ports  *********
     #******************************
-    input_port('point_cloud_model', 'base/samples/Pointcloud').
+    input_port('point_cloud_target', 'base/samples/Pointcloud').
 	doc 'Point cloud model (target).'
 
     input_port('point_cloud_source', 'base/samples/Pointcloud').
@@ -50,7 +50,7 @@ task_context "GIcp" do
     #******* Transformer  *********
     #******************************
     transformer do
-        align_port("point_cloud_model", 0.01)
+        align_port("point_cloud_target", 0.01)
 	align_port("point_cloud_source", 0.01)
         max_latency(0.02)
     end

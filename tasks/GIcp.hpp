@@ -10,6 +10,7 @@
 
 /** PCL library **/
 #include <pcl/filters/fast_bilateral_omp.h>
+#include <pcl/registration/ia_ransac.h>_
 #include <pcl/registration/gicp.h>
 
 /** Rock libraries **/
@@ -54,13 +55,16 @@ namespace icp {
         /***************************/
         /** Input port variables **/
         /***************************/
-        ::base::samples::Pointcloud pc_model, pc_source;
+        ::base::samples::Pointcloud target_pc, source_pc;
 
         /*******************************/
         /** General Purpose variables **/
         /*******************************/
         pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp; /** Generalized Iterative Closest Point **/
         pcl::FastBilateralFilter<pcl::PointXYZ> bilateral_filter;
+
+        PCLPointCloudPtr source_cloud; /** Input **/
+        PCLPointCloudPtr target_cloud; /** Target **/
 
         /***************************/
         /** Output port variables **/
@@ -69,7 +73,7 @@ namespace icp {
 
     protected:
 
-        virtual void point_cloud_modelTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_model_sample);
+        virtual void point_cloud_targetTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_target_sample);
         virtual void point_cloud_sourceTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_source_sample);
 
     public:
@@ -148,18 +152,13 @@ namespace icp {
          */
         void cleanupHook();
 
-        ::base::samples::RigidBodyState performAlign (const ::base::samples::Pointcloud & target,
-                                                    const ::base::samples::Pointcloud & model,
-                                                    ::base::samples::RigidBodyState &initial_delta,
-                                                    icp::GICPConfiguration &gicp_config);
+        void toPCLPointCloud(const ::base::samples::Pointcloud & pc, pcl::PointCloud< pcl::PointXYZ >& pcl_pc, double density);
 
-        void toPCLPointCloud(const std::vector< Eigen::Vector3d >& points, pcl::PointCloud< pcl::PointXYZ >& pcl_pc, double density);
+        void fromPCLPointCloud(::base::samples::Pointcloud & pc, const pcl::PointCloud< pcl::PointXYZ >& pcl_pc, double density);
 
-        void fromPCLPointCloud(std::vector< Eigen::Vector3d >& points, const pcl::PointCloud< pcl::PointXYZ >& pcl_pc, double density);
+        void transformPointCloud(const ::base::samples::Pointcloud & pc, ::base::samples::Pointcloud & transformed_pc, const Eigen::Affine3d& transformation);
 
-        void transformPointCloud(const std::vector< Eigen::Vector3d >& points, std::vector< Eigen::Vector3d >& transformed_pc, const Eigen::Affine3d& transformation);
-
-        void transformPointCloud(std::vector< Eigen::Vector3d >& points, const Eigen::Affine3d& transformation);
+        void transformPointCloud(::base::samples::Pointcloud & pc, const Eigen::Affine3d& transformation);
     };
 }
 
