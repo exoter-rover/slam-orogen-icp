@@ -7,15 +7,22 @@
 
 /** Standard libraries **/
 #include <cstdlib>
+#include <ctime>
 
 /** PCL library **/
-#include <pcl/filters/fast_bilateral_omp.h>
-#include <pcl/registration/ia_ransac.h>_
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
 #include <pcl/registration/gicp.h>
+#include <pcl/filters/fast_bilateral_omp.h>
+#include <pcl/registration/transformation_estimation_svd.h>
 
 /** Rock libraries **/
 #include <base/samples/RigidBodyState.hpp>
 #include <base/Point.hpp>
+
+/** Eigen library **/
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 namespace icp {
 
@@ -50,7 +57,8 @@ namespace icp {
         /**************************/
         /*** Property Variables ***/
         /**************************/
-        icp::GICPConfiguration gicp_config; /** Configuration **/
+        icp::GICPConfiguration gicp_config; /** ICP Configuration **/
+        icp::BilateralFilterConfiguration bfilter_config; /** Bilateral filter Configuration **/
 
         /***************************/
         /** Input port variables **/
@@ -62,6 +70,7 @@ namespace icp {
         /*******************************/
         pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp; /** Generalized Iterative Closest Point **/
         pcl::FastBilateralFilter<pcl::PointXYZ> bilateral_filter;
+        pcl::registration::TransformationEstimationSVD<pcl::PointXYZ, pcl::PointXYZ, double> svd;
 
         PCLPointCloudPtr source_cloud; /** Input **/
         PCLPointCloudPtr target_cloud; /** Target **/
@@ -159,6 +168,8 @@ namespace icp {
         void transformPointCloud(const ::base::samples::Pointcloud & pc, ::base::samples::Pointcloud & transformed_pc, const Eigen::Affine3d& transformation);
 
         void transformPointCloud(::base::samples::Pointcloud & pc, const Eigen::Affine3d& transformation);
+
+        void transformPointCloud(pcl::PointCloud<pcl::PointXYZ> &pcl_pc, const Eigen::Affine3d& transformation);
     };
 }
 

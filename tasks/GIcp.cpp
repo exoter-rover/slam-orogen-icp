@@ -4,9 +4,13 @@
 
 using namespace icp;
 
+#define DEBUG_PRINTS 1
+
 GIcp::GIcp(std::string const& name)
     : GIcpBase(name)
 {
+    source_cloud.reset(new PCLPointCloud);
+    target_cloud.reset(new PCLPointCloud);
 }
 
 GIcp::GIcp(std::string const& name, RTT::ExecutionEngine* engine)
@@ -16,20 +20,31 @@ GIcp::GIcp(std::string const& name, RTT::ExecutionEngine* engine)
 
 GIcp::~GIcp()
 {
+    source_cloud.reset();
+    target_cloud.reset();
 }
 
 void GIcp::point_cloud_targetTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_target_sample)
 {
     target_pc = point_cloud_target_sample;
 
+    #ifdef DEBUG_PRINTS
+    std::cout<<"** [POINT_CLOUD_TARGET]point_cloud_target at ("<<point_cloud_target_sample.time.toMicroseconds()<< ")**\n";
+    #endif
+
+
     /** Convert to pcl point clouds **/
     this->toPCLPointCloud(target_pc, *target_cloud.get(), gicp_config.point_cloud_density);
+    target_cloud->width =  static_cast<int>(gicp_config.point_cloud_density * _point_cloud_width.value());
+    target_cloud->height =  static_cast<int>(gicp_config.point_cloud_density * _point_cloud_height.value());
 
     /** Bilateral filter **/
     bilateral_filter.setInputCloud(target_cloud);
-    PCLPointCloudPtr filtered_cloud(new PCLPointCloud);
-    bilateral_filter.applyFilter(*filtered_cloud.get());
-    target_cloud =  filtered_cloud;
+    PCLPointCloud filtered_cloud;
+    filtered_cloud.width = target_cloud->width;
+    filtered_cloud.height = target_cloud->height;
+    bilateral_filter.applyFilter(filtered_cloud);
+    *target_cloud = filtered_cloud;
 
 }
 
@@ -38,37 +53,66 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::b
     ::base::samples::RigidBodyState initial_deltapose, delta_pose;
     source_pc = point_cloud_source_sample;
 
-    if (_initial_alignment.readNewest(initial_deltapose) == RTT::NewData)
-    {
-        /** Transform the cloud **/
-        Eigen::Affine3d init_transform(initial_deltapose.orientation);
-        init_transform.translation() = initial_deltapose.position;
-        this->transformPointCloud(source_pc, init_transform);
-    }
-    else
-    {
-        /** TO-DO: estimate initial transform using sample consensus **/
-        pcl::SampleConsensusInitialAlignment<pcl::PointXYZ, pcl::PointXYZ, pcl::FPFHSignature33> sac_ia;
+    #ifdef DEBUG_PRINTS
+    std::cout<<"** [POINT_CLOUD_SOURCE]point_cloud_source at ("<<point_cloud_source_sample.time.toMicroseconds()<< ")**\n";
+    #endif
 
+    if (_initial_alignment.connected())
+    {
+        if(_initial_alignment.readNewest(initial_deltapose) == RTT::NewData)
+        {
+            /** Transform the cloud **/
+            Eigen::Affine3d init_transform(initial_deltapose.orientation);
+            init_transform.translation() = initial_deltapose.position;
+            this->transformPointCloud(source_pc, init_transform);
+        }
     }
 
     /** Convert to pcl point clouds **/
     this->toPCLPointCloud(source_pc, *source_cloud.get(), gicp_config.point_cloud_density);
+    source_cloud->height = static_cast<int>(gicp_config.point_cloud_density * _point_cloud_height.value());
+    source_cloud->width = static_cast<int>(gicp_config.point_cloud_density * _point_cloud_width.value());
 
     /** Bilateral filter **/
     bilateral_filter.setInputCloud(source_cloud);
-    PCLPointCloudPtr filtered_cloud(new PCLPointCloud);
-    bilateral_filter.applyFilter(*filtered_cloud.get());
-    source_cloud =  filtered_cloud;
+    PCLPointCloud filtered_cloud;
+    filtered_cloud.width = source_cloud->width;
+    filtered_cloud.height = source_cloud->height;
+    bilateral_filter.applyFilter(filtered_cloud);
+    *source_cloud = filtered_cloud;
 
+    /** First iteration when there is not point cloud in the other port **/
+    if ((!_point_cloud_target.connected()) && (target_cloud->size() == 0))
+    {
+        *target_cloud = *source_cloud;
+    }
+
+    /** Initial alignment **/
+//    if (!_initial_alignment.connected())
+//    {
+//        Eigen::Matrix4d svd_transform;
+//        std::clock_t begin = std::clock();
+//        svd.estimateRigidTransformation (*source_cloud, *target_cloud, svd_transform);
+//        std::clock_t end = std::clock();
+//        Eigen::Affine3d init_transform;
+//        init_transform.matrix() = svd_transform;
+//        this->transformPointCloud(*source_cloud, init_transform);
+//
+//        double elapsed_secs = static_cast<double>(end - begin) / CLOCKS_PER_SEC;
+//        std::cout<<"SVD alignment in "<<elapsed_secs<<" [seconds]\n";
+//    }
+//
     /** Perform align **/
-    icp.setInputCloud(source_cloud);
+    icp.setInputSource(source_cloud);
     icp.setInputTarget(target_cloud);
     pcl::PointCloud<pcl::PointXYZ> cloud_source_registered;
+    std::clock_t begin = std::clock();
     icp.align(cloud_source_registered);
+    std::clock_t end = std::clock();
+    double elapsed_secs = static_cast<double>(end - begin) / CLOCKS_PER_SEC;
+    std::cout<<"GICP alignment in "<<elapsed_secs<<" [seconds]\n";
 
     double fitness_score = icp.getFitnessScore();
-
 
     /** Get the transformation **/
     Eigen::Isometry3f transformation;
@@ -78,8 +122,29 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::b
     }
     else
     {
-        transformation.matrix() = base::NaN<double>() * Eigen::Matrix4f::Ones();
+        transformation = base::NaN<float>() * Eigen::Matrix4f::Ones();
     }
+
+    #ifdef DEBUG_PRINTS
+    std::cout<<"** [POINT_CLOUD_SOURCE] Fitness_score: "<<fitness_score<<"\n";
+    std::cout<<"** [POINT_CLOUD_SOURCE] Transformation alignment:\n"<<transformation.matrix()<<"\n";
+    #endif
+
+    /** Delta Pose Output port **/
+    transformation.makeAffine();
+    Eigen::Affine3d tf;
+    tf.matrix() = transformation.cast<double>().matrix();
+    delta_pose.invalidate();
+    delta_pose.time = source_pc.time;
+    delta_pose.orientation = Eigen::Quaternion <double>(tf.rotation());
+    delta_pose.position = tf.translation();
+    _delta_pose_samples_out.write(delta_pose);
+
+    /** Cumulative Pose **/
+    Eigen::Affine3d poseTrans = pose.getTransform();
+    poseTrans = poseTrans * delta_pose;
+    pose.setTransform(poseTrans);
+    _pose_samples_out.write(pose);
 
     /** Debug Output **/
     if (_output_debug.value())
@@ -90,8 +155,18 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::b
         icp_debug.fitness_score = fitness_score;
 
         /** Filtered point cloud **/
+        ::base::samples::Pointcloud filtered_pc;
+        this->fromPCLPointCloud(filtered_pc, *source_cloud.get(), gicp_config.point_cloud_density);
+        _point_cloud_samples_out.write(filtered_pc);
     }
 
+    /** In case target port is not connected **/
+    if (!_point_cloud_target.connected())
+    {
+        /** The source is now the target for the next iteration **/
+        *target_cloud = *source_cloud;
+
+    }
 }
 
 /// The following lines are template definitions for the various state machine
@@ -104,7 +179,8 @@ bool GIcp::configureHook()
         return false;
 
     /** Read configuration **/
-    gicp_config = _config_parameters.get();
+    gicp_config = _gicp_config.get();
+    bfilter_config = _bfilter_config.get();
 
     /** Configure ICP **/
     icp.setMaxCorrespondenceDistance(gicp_config.max_correspondence_distance);
@@ -116,6 +192,39 @@ bool GIcp::configureHook()
     icp.setRotationEpsilon(gicp_config.rotation_epsilon);
 
     /** Configure Bilateral filter **/
+    bilateral_filter.setSigmaS(bfilter_config.spatial_width);
+    bilateral_filter.setSigmaR(bfilter_config.range_sigma);
+
+    /** Initial cumulative pose **/
+    pose.invalidate();
+    pose.sourceFrame = "";
+    pose.targetFrame = "";
+    pose.position.setZero();
+    pose.velocity.setZero();
+
+    /** Assume well known starting position **/
+    pose.cov_position = Eigen::Matrix3d::Zero();
+    pose.cov_velocity = Eigen::Matrix3d::Zero();
+
+    /** Orientation with respect to the relative navigation frame**/
+    pose.orientation = Eigen::Quaterniond::Identity();
+    pose.angular_velocity.setZero();
+
+    /** Assume very well known initial attitude **/
+    pose.cov_orientation = Eigen::Matrix3d::Zero();
+    pose.cov_angular_velocity = Eigen::Matrix3d::Zero();
+
+    /** Organize point cloud **/
+    if (source_cloud != NULL && !source_cloud->isOrganized())
+    {
+        source_cloud->height = _point_cloud_height.value();
+        source_cloud->width = _point_cloud_width.value();
+    }
+    if (target_cloud != NULL && !target_cloud->isOrganized())
+    {
+        target_cloud->height = _point_cloud_height.value();
+        target_cloud->width = _point_cloud_width.value();
+    }
 
     return true;
 }
@@ -124,9 +233,6 @@ bool GIcp::startHook()
 {
     if (! GIcpBase::startHook())
         return false;
-
-    source_cloud.reset(new PCLPointCloud);
-    target_cloud.reset(new PCLPointCloud);
 
     return true;
 }
@@ -145,9 +251,6 @@ void GIcp::errorHook()
 void GIcp::stopHook()
 {
     GIcpBase::stopHook();
-
-    source_cloud.reset();
-    target_cloud.reset();
 }
 
 void GIcp::cleanupHook()
@@ -253,4 +356,15 @@ void GIcp::transformPointCloud(::base::samples::Pointcloud & pc, const Eigen::Af
         *it = (transformation * (*it));
     }
 }
+
+void GIcp::transformPointCloud(pcl::PointCloud<pcl::PointXYZ> &pcl_pc, const Eigen::Affine3d& transformation)
+{
+    for(std::vector< pcl::PointXYZ, Eigen::aligned_allocator<pcl::PointXYZ> >::iterator it = pcl_pc.begin(); it != pcl_pc.end(); it++)
+    {
+        Eigen::Vector3d point (it->x, it->y, it->z);
+        point = transformation * point;
+        *it = pcl::PointXYZ (point[0], point[1], point[2]);
+    }
+}
+
 

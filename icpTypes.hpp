@@ -28,6 +28,12 @@ namespace icp
         double max_sensor_distance;
     };
 
+    struct BilateralFilterConfiguration
+    {
+        float spatial_width;
+        float range_sigma;
+    };
+
     struct ICPDebug
     {
         base::Time time;
