@@ -1,6 +1,6 @@
 --- name:default
 point_cloud_height: 144
-point_cloud_width: 174
+point_cloud_width: 176
 
 # Configuration parameters for the ICP.
 gicp_config:
