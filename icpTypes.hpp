@@ -21,7 +21,6 @@ namespace icp
         unsigned correspondence_randomness;
         unsigned maximum_optimizer_iterations;
         double rotation_epsilon;
-        double point_cloud_density;
         double max_fitness_score;
         double position_sigma;
         double orientation_sigma;
@@ -30,6 +29,7 @@ namespace icp
 
     struct BilateralFilterConfiguration
     {
+        bool filterOn;
         float spatial_width;
         float range_sigma;
     };

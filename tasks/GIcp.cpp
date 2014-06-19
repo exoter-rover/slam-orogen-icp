@@ -34,18 +34,20 @@ void GIcp::point_cloud_targetTransformerCallback(const base::Time &ts, const ::b
 
 
     /** Convert to pcl point clouds **/
-    this->toPCLPointCloud(target_pc, *target_cloud.get(), gicp_config.point_cloud_density);
-    target_cloud->width =  static_cast<int>(gicp_config.point_cloud_density * _point_cloud_width.value());
-    target_cloud->height =  static_cast<int>(gicp_config.point_cloud_density * _point_cloud_height.value());
+    this->toPCLPointCloud(target_pc, *target_cloud.get());
+    target_cloud->height =  static_cast<int>(_point_cloud_height.value());
+    target_cloud->width =  static_cast<int>(_point_cloud_width.value());
 
     /** Bilateral filter **/
-    bilateral_filter.setInputCloud(target_cloud);
-    PCLPointCloud filtered_cloud;
-    filtered_cloud.width = target_cloud->width;
-    filtered_cloud.height = target_cloud->height;
-    bilateral_filter.applyFilter(filtered_cloud);
-    *target_cloud = filtered_cloud;
-
+    if (bfilter_config.filterOn)
+    {
+        bilateral_filter.setInputCloud(target_cloud);
+        PCLPointCloud filtered_cloud;
+        filtered_cloud.width = target_cloud->width;
+        filtered_cloud.height = target_cloud->height;
+        bilateral_filter.filter(filtered_cloud);
+        target_cloud = boost::make_shared<PCLPointCloud>(filtered_cloud);
+    }
 }
 
 void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_source_sample)
@@ -69,22 +71,25 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::b
     }
 
     /** Convert to pcl point clouds **/
-    this->toPCLPointCloud(source_pc, *source_cloud.get(), gicp_config.point_cloud_density);
-    source_cloud->height = static_cast<int>(gicp_config.point_cloud_density * _point_cloud_height.value());
-    source_cloud->width = static_cast<int>(gicp_config.point_cloud_density * _point_cloud_width.value());
+    this->toPCLPointCloud(source_pc, *source_cloud.get());
+    source_cloud->height = static_cast<int>(_point_cloud_height.value());
+    source_cloud->width = static_cast<int>(_point_cloud_width.value());
 
     /** Bilateral filter **/
-    bilateral_filter.setInputCloud(source_cloud);
-    PCLPointCloud filtered_cloud;
-    filtered_cloud.width = source_cloud->width;
-    filtered_cloud.height = source_cloud->height;
-    bilateral_filter.applyFilter(filtered_cloud);
-    *source_cloud = filtered_cloud;
+    if (bfilter_config.filterOn)
+    {
+        bilateral_filter.setInputCloud(source_cloud);
+        PCLPointCloudPtr filtered_cloud(new PCLPointCloud);
+        filtered_cloud->width = target_cloud->width;
+        filtered_cloud->height = target_cloud->height;
+        bilateral_filter.filter(*filtered_cloud);
+        source_cloud = boost::make_shared<PCLPointCloud>(*filtered_cloud);
+    }
 
     /** First iteration when there is not point cloud in the other port **/
     if ((!_point_cloud_target.connected()) && (target_cloud->size() == 0))
     {
-        *target_cloud = *source_cloud;
+        target_cloud = boost::make_shared<PCLPointCloud>(*source_cloud);
     }
 
     /** Initial alignment **/
@@ -156,6 +161,7 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::b
 
         /** Filtered point cloud **/
         ::base::samples::Pointcloud filtered_pc;
+        filtered_pc.time = source_pc.time;
         this->fromPCLPointCloud(filtered_pc, *source_cloud.get(), gicp_config.point_cloud_density);
         _point_cloud_samples_out.write(filtered_pc);
     }
@@ -164,7 +170,7 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::b
     if (!_point_cloud_target.connected())
     {
         /** The source is now the target for the next iteration **/
-        *target_cloud = *source_cloud;
+        target_cloud = boost::make_shared<PCLPointCloud>(*source_cloud);
 
     }
 }
@@ -214,6 +220,7 @@ bool GIcp::configureHook()
     pose.cov_orientation = Eigen::Matrix3d::Zero();
     pose.cov_angular_velocity = Eigen::Matrix3d::Zero();
 
+
     /** Organize point cloud **/
     if (source_cloud != NULL && !source_cloud->isOrganized())
     {
@@ -222,8 +229,8 @@ bool GIcp::configureHook()
     }
     if (target_cloud != NULL && !target_cloud->isOrganized())
     {
-        target_cloud->height = _point_cloud_height.value();
-        target_cloud->width = _point_cloud_width.value();
+        target_cloud->height =  _point_cloud_height.value();
+        target_cloud->width =  _point_cloud_width.value();
     }
 
     return true;
@@ -259,7 +266,7 @@ void GIcp::cleanupHook()
 }
 
 
-void GIcp::toPCLPointCloud(const ::base::samples::Pointcloud & pc, pcl::PointCloud< pcl::PointXYZ >& pcl_pc, double density)
+void GIcp::toPCLPointCloud(const ::base::samples::Pointcloud & pc, pcl::PointCloud< pcl::PointXYZ >& pcl_pc, double density = 1.0)
 {
     pcl_pc.clear();
     std::vector<bool> mask;
@@ -293,13 +300,16 @@ void GIcp::toPCLPointCloud(const ::base::samples::Pointcloud & pc, pcl::PointClo
     {
         if(mask[i])
         {
-            /** Depth info **/
-            pcl_pc.push_back(pcl::PointXYZ(pc.points[i].x(), pc.points[i].y(), pc.points[i].z()));
-
-            /** Color info **/
-
+            if (base::isnotnan<base::Point>(pc.points[i]))
+            {
+                /** Depth info **/
+                pcl_pc.push_back(pcl::PointXYZ(pc.points[i].x(), pc.points[i].y(), pc.points[i].z()));
+            }
         }
     }
+
+    /** All data points are finite (no NaN or Infinite) **/
+    pcl_pc.is_dense = true;
 }
 
 void GIcp::fromPCLPointCloud(::base::samples::Pointcloud & pc, const pcl::PointCloud< pcl::PointXYZ >& pcl_pc, double density)
