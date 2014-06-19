@@ -162,7 +162,7 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::b
         /** Filtered point cloud **/
         ::base::samples::Pointcloud filtered_pc;
         filtered_pc.time = source_pc.time;
-        this->fromPCLPointCloud(filtered_pc, *source_cloud.get(), gicp_config.point_cloud_density);
+        this->fromPCLPointCloud(filtered_pc, *source_cloud.get());
         _point_cloud_samples_out.write(filtered_pc);
     }
 
@@ -266,7 +266,7 @@ void GIcp::cleanupHook()
 }
 
 
-void GIcp::toPCLPointCloud(const ::base::samples::Pointcloud & pc, pcl::PointCloud< pcl::PointXYZ >& pcl_pc, double density = 1.0)
+void GIcp::toPCLPointCloud(const ::base::samples::Pointcloud & pc, pcl::PointCloud< pcl::PointXYZ >& pcl_pc, double density)
 {
     pcl_pc.clear();
     std::vector<bool> mask;
