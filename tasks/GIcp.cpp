@@ -48,6 +48,7 @@ void GIcp::point_cloud_targetTransformerCallback(const base::Time &ts, const ::b
         bilateral_filter.filter(filtered_cloud);
         target_cloud = boost::make_shared<PCLPointCloud>(filtered_cloud);
     }
+
 }
 
 void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_source_sample)
@@ -79,11 +80,49 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::b
     if (bfilter_config.filterOn)
     {
         bilateral_filter.setInputCloud(source_cloud);
-        PCLPointCloudPtr filtered_cloud(new PCLPointCloud);
-        filtered_cloud->width = target_cloud->width;
-        filtered_cloud->height = target_cloud->height;
-        bilateral_filter.filter(*filtered_cloud);
-        source_cloud = boost::make_shared<PCLPointCloud>(*filtered_cloud);
+        PCLPointCloud filtered_cloud;
+        filtered_cloud.width = source_cloud->width;
+        filtered_cloud.height = source_cloud->height;
+        bilateral_filter.filter(filtered_cloud);
+        source_cloud = boost::make_shared<PCLPointCloud>(filtered_cloud);
+    }
+
+    /** Pass filter **/
+    if (passfilter_config.filterOn)
+    {
+        pass.setInputCloud(source_cloud);
+        PCLPointCloud filtered_cloud;
+        filtered_cloud.width = source_cloud->width;
+        filtered_cloud.height = source_cloud->height;
+        pass.filter(filtered_cloud);
+        source_cloud = boost::make_shared<PCLPointCloud>(filtered_cloud);
+    }
+
+    /** Outlier filter in case of not NULL **/
+    if (outlierfilter_config.type == STATISTICAL)
+    {
+
+        #ifdef DEBUG_PRINTS
+        std::cout<<"STATISTICAL FILTER\n";
+        #endif
+        PCLPointCloud filtered_cloud;
+        filtered_cloud.width = source_cloud->width;
+        filtered_cloud.height = source_cloud->height;
+        sor.setInputCloud(source_cloud);
+        sor.filter (filtered_cloud);
+        source_cloud = boost::make_shared<PCLPointCloud>(filtered_cloud);
+    }
+    else if (outlierfilter_config.type == RADIUS)
+    {
+        #ifdef DEBUG_PRINTS
+        std::cout<<"RADIUS FILTER\n";
+        #endif
+        PCLPointCloud filtered_cloud;
+        filtered_cloud.width = source_cloud->width;
+        filtered_cloud.height = source_cloud->height;
+        ror.setInputCloud(source_cloud);
+        ror.filter (filtered_cloud);
+        source_cloud = boost::make_shared<PCLPointCloud>(filtered_cloud);
     }
 
     /** First iteration when there is not point cloud in the other port **/
@@ -186,7 +225,9 @@ bool GIcp::configureHook()
 
     /** Read configuration **/
     gicp_config = _gicp_config.get();
+    passfilter_config = _passfilter_config.get();
     bfilter_config = _bfilter_config.get();
+    outlierfilter_config = _outlierfilter_config.get();
 
     /** Configure ICP **/
     icp.setMaxCorrespondenceDistance(gicp_config.max_correspondence_distance);
@@ -198,8 +239,25 @@ bool GIcp::configureHook()
     icp.setRotationEpsilon(gicp_config.rotation_epsilon);
 
     /** Configure Bilateral filter **/
+    pass.setFilterFieldName(passfilter_config.axis_name);
+    pass.setFilterLimits(passfilter_config.limit[0], passfilter_config.limit[1]);
+    pass.setNegative(true);
+
+    /** Configure Bilateral filter **/
     bilateral_filter.setSigmaS(bfilter_config.spatial_width);
     bilateral_filter.setSigmaR(bfilter_config.range_sigma);
+
+    /** Configure Outlier filter **/
+    if (outlierfilter_config.type == icp::STATISTICAL)
+    {
+        sor.setMeanK(outlierfilter_config.parameter_one);
+        sor.setStddevMulThresh(outlierfilter_config.parameter_two);
+    }
+    else if (outlierfilter_config.type == icp::RADIUS)
+    {
+        ror.setRadiusSearch(outlierfilter_config.parameter_one);
+        ror.setMinNeighborsInRadius(outlierfilter_config.parameter_two);
+    }
 
     /** Initial cumulative pose **/
     pose.invalidate();

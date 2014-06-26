@@ -39,6 +39,12 @@ task_context "GIcp" do
     property('gicp_config', 'icp/GICPConfiguration').
 	doc 'Configuration parameters for the ICP.'
 
+    property('passfilter_config', 'icp/PassThroughFilterConfiguration').
+	doc 'Configuration parameters for Pass filter.'
+
+    property('outlierfilter_config', 'icp/OutlierRemovalFilterConfiguration').
+	doc 'Configuration parameters for Radius Outlier Removal filter.'
+
     property('bfilter_config', 'icp/BilateralFilterConfiguration').
 	doc 'Configuration parameters for Bilateral filter.'
 

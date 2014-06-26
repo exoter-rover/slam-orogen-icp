@@ -15,6 +15,9 @@
 #include <pcl/registration/gicp.h>
 #include <pcl/filters/fast_bilateral_omp.h>
 #include <pcl/registration/transformation_estimation_svd.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 
 /** Rock libraries **/
 #include <base/samples/RigidBodyState.hpp>
@@ -58,6 +61,8 @@ namespace icp {
         /*** Property Variables ***/
         /**************************/
         icp::GICPConfiguration gicp_config; /** ICP Configuration **/
+        icp::PassThroughFilterConfiguration passfilter_config; /** Pass Filter Removal Configuration **/
+        icp::OutlierRemovalFilterConfiguration outlierfilter_config; /** Outlier Filter Removal Configuration **/
         icp::BilateralFilterConfiguration bfilter_config; /** Bilateral filter Configuration **/
 
         /***************************/
@@ -69,7 +74,10 @@ namespace icp {
         /** General Purpose variables **/
         /*******************************/
         pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp; /** Generalized Iterative Closest Point **/
+        pcl::PassThrough<pcl::PointXYZ> pass;
         pcl::FastBilateralFilter<pcl::PointXYZ> bilateral_filter;
+        pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+        pcl::RadiusOutlierRemoval<pcl::PointXYZ> ror;
         pcl::registration::TransformationEstimationSVD<pcl::PointXYZ, pcl::PointXYZ, double> svd;
 
         PCLPointCloudPtr source_cloud; /** Input **/
