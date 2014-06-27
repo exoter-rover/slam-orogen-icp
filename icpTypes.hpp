@@ -16,17 +16,16 @@ namespace icp
 {
     struct GICPConfiguration
     {
-        double max_correspondence_distance;
-        unsigned maximum_iterations;
-        double transformation_epsilon;
-        double euclidean_fitness_epsilon;
-        unsigned correspondence_randomness;
-        unsigned maximum_optimizer_iterations;
-        double rotation_epsilon;
-        double max_fitness_score;
-        double position_sigma;
-        double orientation_sigma;
-        double max_sensor_distance;
+        unsigned maximum_iterations; //the maximum number of iterations the internal optimization should run for
+        unsigned maximum_optimizer_iterations; //maximum number of iterations at the optimization step
+        unsigned ransac_iterations; //is the number of iterations RANSAC should run for
+        double ransac_oulier_threshold; //the inlier distance threshold for the internal RANSAC outlier rejection loop. The value is set by default to 0.05m.
+        double transformation_epsilon; //the transformation epsilon in order for an optimization to be considered as having converged to the final solution.
+        double rotation_epsilon; //the rotation epsilon in order for an optimization to be considered as having converged to the final solution.
+        double euclidean_fitness_epsilon; //the maximum allowed distance error before the algorithm will be considered to have converged. error between two consecutive steps in the ICP loop
+        double max_correspondence_distance; //distance threshold between two correspondent points in source <-> targe. If the distance is larger than this threshold, the points will be ignored in the alignment process
+        unsigned correspondence_randomness; //the number of neighbors to use when computing covariances
+        double max_fitness_score; //maximum allowed fitness score
     };
 
     struct PassThroughFilterConfiguration
@@ -46,9 +45,9 @@ namespace icp
 
     enum OutlierFilterType
     {
+        NONE,
         STATISTICAL,
-        RADIUS,
-        NONE
+        RADIUS
     };
 
 

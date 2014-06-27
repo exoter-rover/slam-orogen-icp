@@ -230,13 +230,15 @@ bool GIcp::configureHook()
     outlierfilter_config = _outlierfilter_config.get();
 
     /** Configure ICP **/
-    icp.setMaxCorrespondenceDistance(gicp_config.max_correspondence_distance);
     icp.setMaximumIterations(gicp_config.maximum_iterations);
+    icp.setMaximumOptimizerIterations(gicp_config.maximum_optimizer_iterations);
+    icp.setRANSACIterations(gicp_config.ransac_iterations);
+    icp.setMaxCorrespondenceDistance(gicp_config.max_correspondence_distance);
     icp.setTransformationEpsilon(gicp_config.transformation_epsilon);
+    icp.setRotationEpsilon(gicp_config.rotation_epsilon);
     icp.setEuclideanFitnessEpsilon(gicp_config.euclidean_fitness_epsilon);
     icp.setCorrespondenceRandomness(gicp_config.correspondence_randomness);
-    icp.setMaximumOptimizerIterations(gicp_config.maximum_optimizer_iterations);
-    icp.setRotationEpsilon(gicp_config.rotation_epsilon);
+    icp.setRANSACOutlierRejectionThreshold(gicp_config.ransac_oulier_threshold);
 
     /** Configure Bilateral filter **/
     pass.setFilterFieldName(passfilter_config.axis_name);
@@ -290,6 +292,19 @@ bool GIcp::configureHook()
         target_cloud->height =  _point_cloud_height.value();
         target_cloud->width =  _point_cloud_width.value();
     }
+
+
+    #ifdef DEBUG_PRINTS
+    std::cout<<"Max iterations: "<<icp.getMaximumIterations()<<"\n";
+    std::cout<<"Max Optimizer Iterations: "<<icp.getMaximumOptimizerIterations()<<"\n";
+    std::cout<<"RANSAC iterations: "<<icp.getRANSACIterations()<<"\n";
+    std::cout<<"RANSAC Oulier Threshold: "<<icp.getRANSACOutlierRejectionThreshold()<<"\n";
+    std::cout<<"Transformation epsilon: "<<icp.getTransformationEpsilon()<<"\n";
+    std::cout<<"Rotation Epsilon: "<<icp.getRotationEpsilon()<<"\n";
+    std::cout<<"Euclidean Fitness epsilon: "<<icp.getEuclideanFitnessEpsilon()<<"\n";
+    std::cout<<"Max correspondence distance: "<<icp.getMaxCorrespondenceDistance()<<"\n";
+    std::cout<<"Correspondence Randomness: "<<icp.getCorrespondenceRandomness()<<"\n";
+    #endif
 
     return true;
 }
