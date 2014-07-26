@@ -65,10 +65,11 @@ namespace icp
     };
 
 
-    struct ICPDebug
+    struct ICPInfo
     {
         base::Time time;
         double fitness_score;
+        base::Time compute_time;
     };
 
 }

@@ -80,14 +80,15 @@ task_context "GIcp" do
     output_port('delta_pose_samples_out', '/base/samples/RigidBodyState').
 	doc 'Delta estimated pose. Translation from input point cloud (point_cloud_source) to target point cloud (point_cloud_model). T_input_target'
 
+    output_port('icp_info', 'icp/ICPInfo').
+	doc 'icp extra information port.'
+
+
     #************************************
     #******* Output Debug Ports *********
     #************************************
     property('output_debug', 'bool', false).
 	doc 'Set to true if output debug information is desirable.'
-
-    output_port('icp_debug', 'icp/ICPDebug').
-	doc 'icp extra debug information port.'
 
     output_port('point_cloud_samples_out', 'base/samples/Pointcloud').
 	doc 'Filtered point cloud samples.'

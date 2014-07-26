@@ -4,7 +4,7 @@
 
 using namespace icp;
 
-#define DEBUG_PRINTS 1
+//#define DEBUG_PRINTS 1
 
 GIcp::GIcp(std::string const& name)
     : GIcpBase(name)
@@ -154,7 +154,10 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::b
     icp.align(cloud_source_registered);
     std::clock_t end = std::clock();
     double elapsed_secs = static_cast<double>(end - begin) / CLOCKS_PER_SEC;
+
+    #ifdef DEBUG_PRINTS
     std::cout<<"GICP alignment in "<<elapsed_secs<<" [seconds]\n";
+    #endif
 
     double fitness_score = icp.getFitnessScore();
 
@@ -190,14 +193,16 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::b
     pose.setTransform(poseTrans);
     _pose_samples_out.write(pose);
 
+    /** ICP info **/
+    icp::ICPInfo icp_info;
+    icp_info.time = delta_pose.time;
+    icp_info.fitness_score = fitness_score;
+    icp_info.compute_time = ::base::Time::fromSeconds(elapsed_secs);
+    _icp_info.write(icp_info);
+
     /** Debug Output **/
     if (_output_debug.value())
     {
-        /** Debug info **/
-        icp::ICPDebug icp_debug;
-        icp_debug.time = delta_pose.time;
-        icp_debug.fitness_score = fitness_score;
-
         /** Filtered point cloud **/
         ::base::samples::Pointcloud filtered_pc;
         filtered_pc.time = source_pc.time;
