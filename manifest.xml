@@ -19,4 +19,6 @@
   <depend package="drivers/orogen/aggregator" />
   <depend package="drivers/orogen/transformer" />
   <depend package="slam/pcl" />
+
+  <tags>stable, localization</tags>
 </package>
