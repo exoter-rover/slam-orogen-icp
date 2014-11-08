@@ -36,6 +36,10 @@ task_context "GIcp" do
     property('point_cloud_width', 'int').
 	doc 'PCL Point clouds needs to be organized. It will take this property to organize them.'
 
+    property('icp_odometry_source_frame', '/std/string').doc 'From Frame at previous instance time for the transformer'
+
+    property('icp_odometry_target_frame', '/std/string').doc 'To Frame at next instance time for the transformer'
+
     property('gicp_config', 'icp/GICPConfiguration').
 	doc 'Configuration parameters for the ICP.'
 

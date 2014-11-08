@@ -268,8 +268,8 @@ bool GIcp::configureHook()
 
     /** Initial cumulative pose **/
     pose.invalidate();
-    pose.sourceFrame = "";
-    pose.targetFrame = "";
+    pose.sourceFrame = _icp_odometry_source_frame.value();
+    pose.targetFrame = _icp_odometry_target_frame.value();
     pose.position.setZero();
     pose.velocity.setZero();
 
