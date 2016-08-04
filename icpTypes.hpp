@@ -9,8 +9,8 @@
  */
 
 #include <string>
-#include <base/time.h>
-#include <base/eigen.h>
+#include <base/Time.hpp>
+#include <base/Eigen.hpp>
 
 namespace icp
 {
