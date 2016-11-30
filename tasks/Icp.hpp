@@ -96,6 +96,8 @@ namespace icp {
         /*******************************/
         /** General Purpose variables **/
         /*******************************/
+        base::samples::RigidBodyState rbs_world_sensor;
+        Eigen::Affine3d tf_world_sensor; /** Tworld_sensor **/
         Eigen::Affine3d tf_sensor_world; /** Previous transformation Tsensor_world **/
 
         PCLPointCloudPtr source_cloud; /** Input **/
@@ -104,6 +106,7 @@ namespace icp {
         /***************************/
         /** Output port variables **/
         /***************************/
+        PCLPointCloudPtr source_cloud_registered;
         ::base::samples::RigidBodyState pose; /** Cumulative pose **/
 
     public:
@@ -182,7 +185,7 @@ namespace icp {
          */
         void cleanupHook();
 
-        void transformPointCloud(pcl::PointCloud<pcl::PointXYZ> &pcl_pc, const Eigen::Affine3d& transformation);
+        void transformPointCloud(pcl::PointCloud<PCLPointT> &pcl_pc, const Eigen::Affine3d& transformation);
 
         void pairAlign (const PCLPointCloudPtr cloud_src, const PCLPointCloudPtr cloud_tgt, PCLPointCloudPtr output, Eigen::Matrix4f &final_transform, bool downsample = false);
     };
