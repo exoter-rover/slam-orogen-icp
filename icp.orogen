@@ -12,7 +12,6 @@ using_library "flann"
 # library's pkg-config name) and then the header can be used. Following Rock
 # conventions, a common use-case would be:
 import_types_from "base"
-import_types_from "pcl"
 import_types_from "icpTypes.hpp"
 
 # If this project uses data types that are defined in other oroGen projects,
@@ -97,67 +96,6 @@ task_context "GIcp" do
 
     output_port('point_cloud_samples_out', 'base/samples/Pointcloud').
 	doc 'Filtered point cloud samples.'
-
-    port_driven
-
-end
-
-
-task_context "Icp" do
-    # This is the default from now on, and should not be removed. Rock will
-    # transition to a setup where all components use a configuration step.
-    needs_configuration
-
-    #*************************
-    #**** Task Properties ****
-    #*************************
-    property('icp_odometry_source_frame', '/std/string').doc 'From Frame at previous instance time for the transformer'
-
-    property('icp_odometry_target_frame', '/std/string').doc 'To Frame at next instance time for the transformer'
-
-    property('icp_delta_odometry_source_frame', '/std/string').doc 'From Frame at previous instance time for the transformer'
-
-    property('icp_delta_odometry_target_frame', '/std/string').doc 'To Frame at next instance time for the transformer'
-
-    #******************************
-    #******* Input ports  *********
-    #******************************
-    input_port('point_cloud_target', 'pcl/PCLPointCloud2').
-        doc 'Point cloud model (target).'
-
-    input_port('point_cloud_source', 'pcl/PCLPointCloud2').
-        doc 'Point cloud samples (input).'
-
-    #******************************
-    #******* Transformer  *********
-    #******************************
-    transformer do
-        transform "sensor", "world" # laser in world in "Source IN target" convention (use for initial alignment)
-        max_latency(0.2)
-    end
-
-
-    #******************************
-    #******* Output Ports *********
-    #******************************
-    output_port('pose_samples_out', '/base/samples/RigidBodyState').
-        doc 'Estimated accumulative pose. Accumulative sum of T_input_target over time.'
-
-    output_port('delta_pose_samples_out', '/base/samples/RigidBodyState').
-        doc 'Delta estimated pose. Translation from input point cloud (point_cloud_source) to target point cloud (point_cloud_model). T_input_target'
-
-    output_port('icp_info', 'icp/ICPInfo').
-        doc 'icp extra information port.'
-
-
-    #************************************
-    #******* Output Debug Ports *********
-    #************************************
-    property('output_debug', 'bool', false).
-        doc 'Set to true if output debug information is desirable.'
-
-    output_port('point_cloud_samples_out', 'pcl/PCLPointCloud2').
-        doc 'Filtered point cloud samples.'
 
     port_driven
 
