@@ -27,6 +27,8 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
+#include <base/samples/Pointcloud.hpp>
+
 namespace icp {
 
     typedef pcl::PointCloud<pcl::PointXYZ> PCLPointCloud;
@@ -68,7 +70,6 @@ namespace icp {
         /***************************/
         /** Input port variables **/
         /***************************/
-        ::base::samples::Pointcloud target_pc, source_pc;
 
         /*******************************/
         /** General Purpose variables **/
@@ -90,8 +91,7 @@ namespace icp {
 
     protected:
 
-        virtual void point_cloud_targetTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_target_sample);
-        virtual void point_cloud_sourceTransformerCallback(const base::Time &ts, const ::base::samples::Pointcloud &point_cloud_source_sample);
+        virtual void point_cloud_sourceTransformerCallback(const base::Time &ts, const ::envire::core::SpatioTemporal<pcl::PCLPointCloud2> &point_cloud_source_sample);
 
     public:
         /** TaskContext constructor for GIcp

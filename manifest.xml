@@ -4,8 +4,6 @@
   </description>
   <author>Javier Hidalgo Carrio/javier.hidalgo_carrio@dfki.de</author>
   <license></license>
-  <url>http://</url>
-  <logo>http://</logo>
   <depend package="base/cmake" />
   <!--
    To add any dependencies use the depend tag
@@ -17,6 +15,8 @@
   <depend package="base/orogen/types" />
   <depend package="drivers/orogen/aggregator" />
   <depend package="drivers/orogen/transformer" />
+  <depend package="slam/orogen/pcl" />
+  <depend package="envire/orogen/envire_pcl" />
 
   <tags>stable, localization</tags>
 </package>

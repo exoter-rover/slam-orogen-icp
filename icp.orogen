@@ -12,6 +12,8 @@ using_library "flann"
 # library's pkg-config name) and then the header can be used. Following Rock
 # conventions, a common use-case would be:
 import_types_from "base"
+import_types_from "envire_pcl"
+import_types_from "pcl"
 import_types_from "icpTypes.hpp"
 
 # If this project uses data types that are defined in other oroGen projects,
@@ -30,36 +32,27 @@ task_context "GIcp" do
     #*************************
     #**** Task Properties ****
     #*************************
-    property('point_cloud_height', 'int').
-	doc 'PCL Point clouds needs to be organized. It will take this property to organize them.'
-
-    property('point_cloud_width', 'int').
-	doc 'PCL Point clouds needs to be organized. It will take this property to organize them.'
-
     property('icp_odometry_source_frame', '/std/string').doc 'From Frame at previous instance time for the transformer'
 
     property('icp_odometry_target_frame', '/std/string').doc 'To Frame at next instance time for the transformer'
 
     property('gicp_config', 'icp/GICPConfiguration').
-	doc 'Configuration parameters for the ICP.'
+        doc 'Configuration parameters for the ICP.'
 
     property('passfilter_config', 'icp/PassThroughFilterConfiguration').
-	doc 'Configuration parameters for Pass filter.'
+        doc 'Configuration parameters for Pass filter.'
 
     property('outlierfilter_config', 'icp/OutlierRemovalFilterConfiguration').
-	doc 'Configuration parameters for Radius Outlier Removal filter.'
+        doc 'Configuration parameters for Radius Outlier Removal filter.'
 
     property('bfilter_config', 'icp/BilateralFilterConfiguration').
-	doc 'Configuration parameters for Bilateral filter.'
+        doc 'Configuration parameters for Bilateral filter.'
 
     #******************************
     #******* Input ports  *********
     #******************************
-    input_port('point_cloud_target', 'base/samples/Pointcloud').
-	doc 'Point cloud model (target).'
-
-    input_port('point_cloud_source', 'base/samples/Pointcloud').
-	doc 'Point cloud samples (input).'
+    input_port('point_cloud_source', '/envire/core/SpatioTemporal<pcl/PCLPointCloud2>').
+        doc 'Point cloud samples (input).'
 
     input_port('initial_alignment', '/base/samples/RigidBodyState').
        doc " External initial pose alignment provided for the ICP."+
@@ -69,8 +62,7 @@ task_context "GIcp" do
     #******* Transformer  *********
     #******************************
     transformer do
-        align_port("point_cloud_target", 0.1)
-	align_port("point_cloud_source", 0.1)
+        align_port("point_cloud_source", 0.1)
         max_latency(0.2)
     end
 
@@ -92,10 +84,10 @@ task_context "GIcp" do
     #******* Output Debug Ports *********
     #************************************
     property('output_debug', 'bool', false).
-	doc 'Set to true if output debug information is desirable.'
+        doc 'Set to true if output debug information is desirable.'
 
-    output_port('point_cloud_samples_out', 'base/samples/Pointcloud').
-	doc 'Filtered point cloud samples.'
+    output_port('point_cloud_samples_out', 'pcl/PCLPointCloud2').
+        doc 'Accumulative point cloud samples.'
 
     port_driven
 
