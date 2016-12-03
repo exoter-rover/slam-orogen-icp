@@ -66,6 +66,7 @@ namespace icp {
         icp::PassThroughFilterConfiguration passfilter_config; /** Pass Filter Removal Configuration **/
         icp::OutlierRemovalFilterConfiguration outlierfilter_config; /** Outlier Filter Removal Configuration **/
         icp::BilateralFilterConfiguration bfilter_config; /** Bilateral filter Configuration **/
+        float downsample_size;
 
         /***************************/
         /** Input port variables **/
@@ -74,6 +75,7 @@ namespace icp {
         /*******************************/
         /** General Purpose variables **/
         /*******************************/
+        Eigen::Affine3d tf_world_sensor_k_1;
         pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp; /** Generalized Iterative Closest Point **/
         pcl::PassThrough<pcl::PointXYZ> pass;
         pcl::FastBilateralFilter<pcl::PointXYZ> bilateral_filter;
@@ -178,6 +180,8 @@ namespace icp {
         void transformPointCloud(::base::samples::Pointcloud & pc, const Eigen::Affine3d& transformation);
 
         void transformPointCloud(pcl::PointCloud<pcl::PointXYZ> &pcl_pc, const Eigen::Affine3d& transformation);
+
+        void downsample (PCLPointCloud::Ptr &points, float leaf_size, PCLPointCloud::Ptr &downsampled_out);
     };
 }
 

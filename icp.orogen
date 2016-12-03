@@ -48,6 +48,9 @@ task_context "GIcp" do
     property('bfilter_config', 'icp/BilateralFilterConfiguration').
         doc 'Configuration parameters for Bilateral filter.'
 
+    property('downsample_size', 'float').
+        doc 'Size for the downsample process of the point cloud'
+
     #******************************
     #******* Input ports  *********
     #******************************

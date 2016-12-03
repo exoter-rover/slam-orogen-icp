@@ -2,8 +2,18 @@
 
 #include "GIcp.hpp"
 #include <pcl/conversions.h>
+#include <pcl/filters/voxel_grid.h>
+
+#include <cmath>
 
 using namespace icp;
+
+#ifndef D2R
+#define D2R M_PI/180.00 /** Convert degree to radian **/
+#endif
+#ifndef R2D
+#define R2D 180.00/M_PI /** Convert radian to degree **/
+#endif
 
 #define DEBUG_PRINTS 1
 
@@ -35,15 +45,23 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::e
     pcl::fromPCLPointCloud2(point_cloud_source_sample.data, *source_cloud.get());
 
     Eigen::Affine3d tf_sensor_k_sensor_k_1; 
+    ::base::samples::RigidBodyState initial_transform; // Tworld_sensor
 
     if (_initial_alignment.connected())
     {
-        ::base::samples::RigidBodyState initial_transform; // Tworld_sensor
         if(_initial_alignment.readNewest(initial_transform) == RTT::NewData)
         {
             /** Transform the cloud to world_frame **/
-            this->transformPointCloud(*source_cloud.get(), initial_transform.getTransform());
+            //this->transformPointCloud(*source_cloud.get(), initial_transform.getTransform());
         }
+
+        if (!base::isnotnan(tf_world_sensor_k_1.matrix()))
+        {
+            tf_world_sensor_k_1 = initial_transform.getTransform();
+        }
+
+        /** Delta transform sensor_k_sensor_k_1 **/
+        tf_sensor_k_sensor_k_1 = initial_transform.getTransform().inverse() * tf_world_sensor_k_1;
     }
 
     /** Bilateral filter **/
@@ -102,75 +120,102 @@ void GIcp::point_cloud_sourceTransformerCallback(const base::Time &ts, const ::e
     }
     else
     {
-        /** Perform align **/
-        icp.setInputSource(source_cloud);
-        icp.setInputTarget(target_cloud);
-        PCLPointCloud source_cloud_registered;
-        std::clock_t begin = std::clock();
-        icp.align(source_cloud_registered);
-        std::clock_t end = std::clock();
-        double elapsed_secs = static_cast<double>(end - begin) / CLOCKS_PER_SEC;
+        //base::Quaterniond qt_sensor_sensor_k_1 (tf_sensor_k_sensor_k_1.rotation());
+        //Eigen::Vector3d euler = base::getEuler(qt_sensor_sensor_k_1);
+        //#ifdef DEBUG_PRINTS
+        //std::cout<< "Roll: "<<euler[2]*R2D<<" Pitch: "<<euler[1]*R2D<<" Yaw: "<<euler[0]*R2D<<"\n";
+        //#endif
 
-        #ifdef DEBUG_PRINTS
-        std::cout<<"GICP alignment in "<<elapsed_secs<<" [seconds]\n";
-        #endif
+        //if (std::abs(euler[1])*R2D > 0.3 && std::abs(euler[1])*R2D < 1.5)
+        //{
+            /** Perform align **/
+            icp.setInputSource(source_cloud);
+            icp.setInputTarget(target_cloud);
+            PCLPointCloud source_cloud_registered;
+            std::clock_t begin = std::clock();
+            icp.align(source_cloud_registered);
+            std::clock_t end = std::clock();
+            double elapsed_secs = static_cast<double>(end - begin) / CLOCKS_PER_SEC;
 
-        double fitness_score = icp.getFitnessScore();
+            #ifdef DEBUG_PRINTS
+            std::cout<<"GICP alignment in "<<elapsed_secs<<" [seconds]\n";
+            #endif
 
-        /** Get the transformation **/
-        Eigen::Affine3d transformation(Eigen::Affine3d::Identity());
-        if(icp.hasConverged())
-        {
-            transformation.matrix() = icp.getFinalTransformation().cast<double>();
-        }
+            double fitness_score = icp.getFitnessScore();
 
-        #ifdef DEBUG_PRINTS
-        if(icp.hasConverged())
-        {
-            std::cout<<"** [POINT_CLOUD_SOURCE] CONVERGED ";
-        }
-        else
-        {
-            std::cout<<"** [POINT_CLOUD_SOURCE] NO CONVERGED ";
-        }
-        std::cout<<"** Fitness_score: "<<fitness_score<<"\n";
-        std::cout<<"** [POINT_CLOUD_SOURCE] Transformation alignment:\n"<<transformation.matrix()<<"\n";
-        #endif
+            /** Get the transformation **/
+            Eigen::Affine3d transformation(Eigen::Affine3d::Identity());
+            if(icp.hasConverged())
+            {
+                transformation.matrix() = icp.getFinalTransformation().cast<double>();
+            }
 
-        /** Delta Pose Output port **/
-        ::base::samples::RigidBodyState delta_pose;
-        transformation.makeAffine();
-        Eigen::Affine3d tf;
-        tf.matrix() = transformation.cast<double>().matrix();
-        delta_pose.invalidate();
-        delta_pose.time = point_cloud_source_sample.time;
-        delta_pose.orientation = Eigen::Quaternion <double>(tf.rotation());
-        delta_pose.position = tf.translation();
-        _delta_pose_samples_out.write(delta_pose);
+            #ifdef DEBUG_PRINTS
+            if(icp.hasConverged())
+            {
+                std::cout<<"** [POINT_CLOUD_SOURCE] CONVERGED ";
+            }
+            else
+            {
+                std::cout<<"** [POINT_CLOUD_SOURCE] NO CONVERGED ";
+            }
+            std::cout<<"** Fitness_score: "<<fitness_score<<"\n";
+            std::cout<<"** [POINT_CLOUD_SOURCE] Transformation alignment:\n"<<transformation.matrix()<<"\n";
+            #endif
 
-        /** Cumulative Pose **/
-        Eigen::Affine3d poseTrans = pose.getTransform();
-        poseTrans = poseTrans * delta_pose;
-        pose.setTransform(poseTrans);
-        _pose_samples_out.write(pose);
+            if (fitness_score <= gicp_config.max_fitness_score)
+            {
+                /** Delta Pose Output port **/
+                ::base::samples::RigidBodyState delta_pose;
+                transformation.makeAffine();
+                Eigen::Affine3d tf;
+                tf.matrix() = transformation.cast<double>().matrix();
+                delta_pose.invalidate();
+                delta_pose.time = point_cloud_source_sample.time;
+                delta_pose.orientation = Eigen::Quaternion <double>(tf.rotation());
+                delta_pose.position = tf.translation();
+                _delta_pose_samples_out.write(delta_pose);
 
-        /** ICP info **/
-        icp::ICPInfo icp_info;
-        icp_info.time = delta_pose.time;
-        icp_info.fitness_score = fitness_score;
-        icp_info.compute_time = ::base::Time::fromSeconds(elapsed_secs);
-        _icp_info.write(icp_info);
+                /** Cumulative Pose **/
+                Eigen::Affine3d poseTrans = pose.getTransform();
+                poseTrans = poseTrans * delta_pose;
+                pose.setTransform(poseTrans);
+                _pose_samples_out.write(pose);
 
-        /** Accumulative point cloud in target **/
-        *target_cloud = source_cloud_registered;
+                /** ICP info **/
+                icp::ICPInfo icp_info;
+                icp_info.time = delta_pose.time;
+                icp_info.fitness_score = fitness_score;
+                icp_info.compute_time = ::base::Time::fromSeconds(elapsed_secs);
+                _icp_info.write(icp_info);
 
-        /** Debug Output **/
-        if (_output_debug.value())
-        {
-            pcl::PCLPointCloud2 point_cloud_out;
-            pcl::toPCLPointCloud2(source_cloud_registered, point_cloud_out);
-            _point_cloud_samples_out.write(point_cloud_out);
-        }
+                /** Accumulative point cloud in target **/
+                *target_cloud += source_cloud_registered;
+
+                PCLPointCloudPtr downsample_point_cloud (new PCLPointCloud);
+                this->downsample (target_cloud, this->downsample_size, downsample_point_cloud);
+
+                *target_cloud = *downsample_point_cloud;
+
+                /** Update the last tf_world_sensor_k_1 transformation **/
+                tf_world_sensor_k_1 = initial_transform.getTransform();
+
+                /** Debug Output **/
+                if (_output_debug.value())
+                {
+                    pcl::PCLPointCloud2 point_cloud_out;
+                    //pcl::toPCLPointCloud2(source_cloud_registered, point_cloud_out);
+                    pcl::toPCLPointCloud2(*target_cloud, point_cloud_out);
+                    _point_cloud_samples_out.write(point_cloud_out);
+                }
+            }
+        //}
+        //else if (std::abs(euler[1])*R2D > 1.5)
+        //{
+        //    /** Update the last tf_world_sensor_k_1 transformation **/
+        //    tf_world_sensor_k_1 = initial_transform.getTransform();
+
+        //}
     }
 }
 
@@ -221,6 +266,8 @@ bool GIcp::configureHook()
         ror.setMinNeighborsInRadius(outlierfilter_config.parameter_two);
     }
 
+    this->downsample_size = _downsample_size.value();
+
     /** Initial cumulative pose **/
     pose.invalidate();
     pose.sourceFrame = _icp_odometry_source_frame.value();
@@ -239,6 +286,8 @@ bool GIcp::configureHook()
     /** Assume very well known initial attitude **/
     pose.cov_orientation = Eigen::Matrix3d::Zero();
     pose.cov_angular_velocity = Eigen::Matrix3d::Zero();
+
+    tf_world_sensor_k_1.matrix() = base::NaN<double>() * Eigen::Matrix<double, 4, 4>::Ones();
 
     #ifdef DEBUG_PRINTS
     std::cout<<"Max iterations: "<<icp.getMaximumIterations()<<"\n";
@@ -390,4 +439,14 @@ void GIcp::transformPointCloud(pcl::PointCloud<pcl::PointXYZ> &pcl_pc, const Eig
     }
 }
 
+void GIcp::downsample (PCLPointCloud::Ptr &points, float leaf_size, PCLPointCloud::Ptr &downsampled_out)
+{
+
+  pcl::VoxelGrid<pcl::PointXYZ> vox_grid;
+  vox_grid.setLeafSize (leaf_size, leaf_size, leaf_size);
+  vox_grid.setInputCloud (points);
+  vox_grid.filter (*downsampled_out);
+
+  return;
+}
 
