@@ -5,6 +5,7 @@ name "icp"
 # If new data types need to be defined, they have to be put in a separate C++
 # header, and this header will be loaded here
 using_library "pcl_registration-1.7"
+using_library "pcl_io-1.7"
 using_library "flann"
 
 # Finally, it is pretty common that headers are directly loaded from an external
@@ -50,6 +51,8 @@ task_context "GIcp" do
 
     property('downsample_size', 'float').
         doc 'Size for the downsample process of the point cloud'
+
+    property('filename', '/std/string').doc 'String for the generated PLY file name'
 
     #******************************
     #******* Input ports  *********
